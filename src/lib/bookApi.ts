@@ -135,34 +135,55 @@ export async function searchByDescription(description: string): Promise<BookData
 }
 
 /**
- * Fetch trending / new books from Open Library's trending API.
+ * Fetch curated YA books from popular authors in romance & fantasy.
  */
 export async function fetchTrendingBooks(): Promise<BookData[]> {
-  const res = await axios.get(
-    `https://openlibrary.org/trending/daily.json?limit=20`
+  const authors = [
+    "Sarah J. Maas",
+    "Rebecca Yarros",
+    "Jennifer L. Armentrout",
+    "Holly Black",
+    "Stephanie Garber",
+  ];
+
+  const results = await Promise.allSettled(
+    authors.map((author) =>
+      axios.get(
+        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+      )
+    )
   );
 
-  const works = res.data.works?.slice(0, 20) || [];
+  const allDocs: any[] = [];
+  const seenTitles = new Set<string>();
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      for (const doc of result.value.data.docs) {
+        const key = doc.title?.toLowerCase();
+        if (key && !seenTitles.has(key) && doc.cover_i) {
+          seenTitles.add(key);
+          allDocs.push(doc);
+        }
+      }
+    }
+  }
+
+  const top24 = allDocs.slice(0, 24);
 
   const books = await Promise.all(
-    works.map(async (work: any) => {
-      const workKey = work.key; // e.g. /works/OL123W
-      let description = "";
-
-      if (workKey) {
-        description = await fetchDescription(workKey);
+    top24.map(async (book: any) => {
+      let description = book.first_sentence?.[0] || "";
+      if (!description && book.key) {
+        description = await fetchDescription(book.key);
       }
-
       if (description.length > 500) {
         description = description.substring(0, 497) + "...";
       }
-
       return {
-        title: work.title,
-        author: work.author_name?.[0] || "Desconocido",
-        cover: work.cover_i
-          ? `https://covers.openlibrary.org/b/id/${work.cover_i}-L.jpg`
-          : null,
+        title: book.title,
+        author: book.author_name?.[0] || "Desconocido",
+        cover: `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`,
         description: description || "Sinopsis no disponible para este título.",
       };
     })
