@@ -174,18 +174,10 @@ export async function searchByDescription(description: string): Promise<BookData
  * Fetch curated YA books from popular authors in romance & fantasy.
  */
 export async function fetchTrendingBooks(): Promise<BookData[]> {
-  const authors = [
-    "Sarah J. Maas",
-    "Rebecca Yarros",
-    "Jennifer L. Armentrout",
-    "Holly Black",
-    "Stephanie Garber",
-  ];
-
   const results = await Promise.allSettled(
-    authors.map((author) =>
+    CURATED_AUTHORS.map((author) =>
       axios.get(
-        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=4&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
       )
     )
   );
@@ -205,25 +197,6 @@ export async function fetchTrendingBooks(): Promise<BookData[]> {
     }
   }
 
-  const top24 = allDocs.slice(0, 24);
-
-  const books = await Promise.all(
-    top24.map(async (book: any) => {
-      let description = book.first_sentence?.[0] || "";
-      if (!description && book.key) {
-        description = await fetchDescription(book.key);
-      }
-      if (description.length > 500) {
-        description = description.substring(0, 497) + "...";
-      }
-      return {
-        title: book.title,
-        author: book.author_name?.[0] || "Desconocido",
-        cover: `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`,
-        description: description || "Sinopsis no disponible para este título.",
-      };
-    })
-  );
-
-  return books;
+  const top30 = allDocs.slice(0, 30);
+  return docsToBooks(top30);
 }
