@@ -183,7 +183,7 @@ const Index = () => {
             {/* Trending / New books */}
             <div className="mt-16 w-full">
               <h3 className="mb-6 text-center font-display text-3xl text-foreground">
-                📚 NOVEDADES Y TENDENCIAS
+                📚 ROMANCE & FANTASÍA JUVENIL
               </h3>
               {loadingTrending ? (
                 <div className="flex justify-center py-10">
