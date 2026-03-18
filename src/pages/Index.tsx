@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked } from "lucide-react";
 import BookCard, { BookData } from "@/components/BookCard";
-import { searchBooks, searchByDescription } from "@/lib/bookApi";
+import { searchBooks, searchByDescription, fetchTrendingBooks } from "@/lib/bookApi";
 
 type SearchMode = "title" | "description";
 
