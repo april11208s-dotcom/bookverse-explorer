@@ -14,6 +14,15 @@ const Index = () => {
   const [searched, setSearched] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>("title");
+  const [trendingBooks, setTrendingBooks] = useState<BookData[]>([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+
+  useEffect(() => {
+    fetchTrendingBooks()
+      .then(setTrendingBooks)
+      .catch(() => setTrendingBooks([]))
+      .finally(() => setLoadingTrending(false));
+  }, []);
 
   useEffect(() => {
     const saved: BookData[] = JSON.parse(localStorage.getItem("favorites") || "[]");
