@@ -32,31 +32,36 @@ async function fetchDescription(workKey: string): Promise<string> {
 }
 
 /**
- * Search books by title, author, or any query.
+ * Curated YA/romance/fantasy authors to boost in search results.
  */
-export async function searchBooks(query: string): Promise<BookData[]> {
-  const res = await axios.get(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
-  );
+const CURATED_AUTHORS = [
+  "Sarah J. Maas", "Rebecca Yarros", "Lauren Roberts",
+  "Jennifer L. Armentrout", "Stephanie Garber", "Holly Black",
+  "Leigh Bardugo", "Sabaa Tahir", "Samantha Shannon",
+  "SA Chakraborty", "Madeline Miller", "Tamsyn Muir",
+  "Lily Mayne", "Laura Gallego", "Victoria Álvarez",
+  "Sara Barquinero", "Andrea Abreu", "Layla Martínez",
+  "María Martínez", "Andrea Longarela", "Tamara Molina",
+  "Adriana Criado", "Irene Franco", "Paula Ramos", "Irina Suoma",
+];
 
-  const docs = res.data.docs.slice(0, 20);
+function processBooks(docs: any[]): any[] {
+  // Prioritize books with covers and sort by edition_count (popularity proxy)
+  return docs
+    .filter((d: any) => d.cover_i)
+    .sort((a: any, b: any) => (b.edition_count || 0) - (a.edition_count || 0));
+}
 
-  // Fetch descriptions in parallel for all books
-  const booksWithDescriptions = await Promise.all(
+async function docsToBooks(docs: any[]): Promise<BookData[]> {
+  return Promise.all(
     docs.map(async (book: any) => {
-      const workKey = book.key; // e.g., /works/OL12345W
       let description = book.first_sentence?.[0] || "";
-
-      // If no first_sentence, fetch from works API
-      if (!description && workKey) {
-        description = await fetchDescription(workKey);
+      if (!description && book.key) {
+        description = await fetchDescription(book.key);
       }
-
-      // Truncate very long descriptions
       if (description.length > 500) {
         description = description.substring(0, 497) + "...";
       }
-
       return {
         title: book.title,
         author: book.author_name?.[0] || "Desconocido",
@@ -67,8 +72,55 @@ export async function searchBooks(query: string): Promise<BookData[]> {
       };
     })
   );
+}
 
-  return booksWithDescriptions;
+/**
+ * Search books by title, author, or any query.
+ * Sorts by new and boosts popular YA authors when searching genres.
+ */
+export async function searchBooks(query: string): Promise<BookData[]> {
+  // Search with sort=new to get recent books first
+  const [mainRes, authorRes] = await Promise.allSettled([
+    axios.get(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    ),
+    // Also search for curated authors + query for better YA results
+    axios.get(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=editions&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    ),
+  ]);
+
+  const allDocs: any[] = [];
+  const seenTitles = new Set<string>();
+
+  // Merge both result sets, deduplicate
+  for (const result of [authorRes, mainRes]) {
+    if (result.status === "fulfilled") {
+      for (const doc of result.value.data.docs) {
+        const key = doc.title?.toLowerCase();
+        if (key && !seenTitles.has(key)) {
+          seenTitles.add(key);
+          allDocs.push(doc);
+        }
+      }
+    }
+  }
+
+  // Boost curated authors to the top
+  const boosted = allDocs.sort((a, b) => {
+    const aIsCurated = CURATED_AUTHORS.some(
+      (ca) => a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    const bIsCurated = CURATED_AUTHORS.some(
+      (ca) => b.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    if (aIsCurated && !bIsCurated) return -1;
+    if (!aIsCurated && bIsCurated) return 1;
+    return (b.edition_count || 0) - (a.edition_count || 0);
+  });
+
+  const filtered = processBooks(boosted).slice(0, 20);
+  return docsToBooks(filtered);
 }
 
 /**
@@ -77,21 +129,18 @@ export async function searchBooks(query: string): Promise<BookData[]> {
  * when the user describes what they want to read.
  */
 export async function searchByDescription(description: string): Promise<BookData[]> {
-  // Use the regular search with the description - Open Library handles natural language well
-  // Also try subject-based search for better results
   const [searchRes, subjectRes] = await Promise.allSettled([
     axios.get(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&limit=12&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     ),
     axios.get(
-      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&limit=12&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&sort=editions&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     ),
   ]);
 
   const allDocs: any[] = [];
   const seenTitles = new Set<string>();
 
-  // Merge results, preferring subject matches, deduplicating by title
   for (const result of [subjectRes, searchRes]) {
     if (result.status === "fulfilled") {
       for (const doc of result.value.data.docs) {
@@ -104,52 +153,31 @@ export async function searchByDescription(description: string): Promise<BookData
     }
   }
 
-  const top20 = allDocs.slice(0, 20);
+  // Boost curated authors
+  const boosted = allDocs.sort((a, b) => {
+    const aIsCurated = CURATED_AUTHORS.some(
+      (ca) => a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    const bIsCurated = CURATED_AUTHORS.some(
+      (ca) => b.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    if (aIsCurated && !bIsCurated) return -1;
+    if (!aIsCurated && bIsCurated) return 1;
+    return (b.edition_count || 0) - (a.edition_count || 0);
+  });
 
-  // Fetch descriptions in parallel
-  const booksWithDescriptions = await Promise.all(
-    top20.map(async (book: any) => {
-      const workKey = book.key;
-      let bookDescription = book.first_sentence?.[0] || "";
-
-      if (!bookDescription && workKey) {
-        bookDescription = await fetchDescription(workKey);
-      }
-
-      if (bookDescription.length > 500) {
-        bookDescription = bookDescription.substring(0, 497) + "...";
-      }
-
-      return {
-        title: book.title,
-        author: book.author_name?.[0] || "Desconocido",
-        cover: book.cover_i
-          ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`
-          : null,
-        description: bookDescription || "Sinopsis no disponible para este título.",
-      };
-    })
-  );
-
-  return booksWithDescriptions;
+  const filtered = processBooks(boosted).slice(0, 20);
+  return docsToBooks(filtered);
 }
 
 /**
  * Fetch curated YA books from popular authors in romance & fantasy.
  */
 export async function fetchTrendingBooks(): Promise<BookData[]> {
-  const authors = [
-    "Sarah J. Maas",
-    "Rebecca Yarros",
-    "Jennifer L. Armentrout",
-    "Holly Black",
-    "Stephanie Garber",
-  ];
-
   const results = await Promise.allSettled(
-    authors.map((author) =>
+    CURATED_AUTHORS.map((author) =>
       axios.get(
-        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=4&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
       )
     )
   );
@@ -169,25 +197,6 @@ export async function fetchTrendingBooks(): Promise<BookData[]> {
     }
   }
 
-  const top24 = allDocs.slice(0, 24);
-
-  const books = await Promise.all(
-    top24.map(async (book: any) => {
-      let description = book.first_sentence?.[0] || "";
-      if (!description && book.key) {
-        description = await fetchDescription(book.key);
-      }
-      if (description.length > 500) {
-        description = description.substring(0, 497) + "...";
-      }
-      return {
-        title: book.title,
-        author: book.author_name?.[0] || "Desconocido",
-        cover: `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`,
-        description: description || "Sinopsis no disponible para este título.",
-      };
-    })
-  );
-
-  return books;
+  const top30 = allDocs.slice(0, 30);
+  return docsToBooks(top30);
 }
