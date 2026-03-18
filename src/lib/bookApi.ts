@@ -129,21 +129,18 @@ export async function searchBooks(query: string): Promise<BookData[]> {
  * when the user describes what they want to read.
  */
 export async function searchByDescription(description: string): Promise<BookData[]> {
-  // Use the regular search with the description - Open Library handles natural language well
-  // Also try subject-based search for better results
   const [searchRes, subjectRes] = await Promise.allSettled([
     axios.get(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&limit=12&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     ),
     axios.get(
-      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&limit=12&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
+      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&sort=editions&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     ),
   ]);
 
   const allDocs: any[] = [];
   const seenTitles = new Set<string>();
 
-  // Merge results, preferring subject matches, deduplicating by title
   for (const result of [subjectRes, searchRes]) {
     if (result.status === "fulfilled") {
       for (const doc of result.value.data.docs) {
@@ -156,34 +153,21 @@ export async function searchByDescription(description: string): Promise<BookData
     }
   }
 
-  const top20 = allDocs.slice(0, 20);
+  // Boost curated authors
+  const boosted = allDocs.sort((a, b) => {
+    const aIsCurated = CURATED_AUTHORS.some(
+      (ca) => a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    const bIsCurated = CURATED_AUTHORS.some(
+      (ca) => b.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    if (aIsCurated && !bIsCurated) return -1;
+    if (!aIsCurated && bIsCurated) return 1;
+    return (b.edition_count || 0) - (a.edition_count || 0);
+  });
 
-  // Fetch descriptions in parallel
-  const booksWithDescriptions = await Promise.all(
-    top20.map(async (book: any) => {
-      const workKey = book.key;
-      let bookDescription = book.first_sentence?.[0] || "";
-
-      if (!bookDescription && workKey) {
-        bookDescription = await fetchDescription(workKey);
-      }
-
-      if (bookDescription.length > 500) {
-        bookDescription = bookDescription.substring(0, 497) + "...";
-      }
-
-      return {
-        title: book.title,
-        author: book.author_name?.[0] || "Desconocido",
-        cover: book.cover_i
-          ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`
-          : null,
-        description: bookDescription || "Sinopsis no disponible para este título.",
-      };
-    })
-  );
-
-  return booksWithDescriptions;
+  const filtered = processBooks(boosted).slice(0, 20);
+  return docsToBooks(filtered);
 }
 
 /**
