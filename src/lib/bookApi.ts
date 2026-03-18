@@ -32,31 +32,36 @@ async function fetchDescription(workKey: string): Promise<string> {
 }
 
 /**
- * Search books by title, author, or any query.
+ * Curated YA/romance/fantasy authors to boost in search results.
  */
-export async function searchBooks(query: string): Promise<BookData[]> {
-  const res = await axios.get(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
-  );
+const CURATED_AUTHORS = [
+  "Sarah J. Maas", "Rebecca Yarros", "Lauren Roberts",
+  "Jennifer L. Armentrout", "Stephanie Garber", "Holly Black",
+  "Leigh Bardugo", "Sabaa Tahir", "Samantha Shannon",
+  "SA Chakraborty", "Madeline Miller", "Tamsyn Muir",
+  "Lily Mayne", "Laura Gallego", "Victoria Álvarez",
+  "Sara Barquinero", "Andrea Abreu", "Layla Martínez",
+  "María Martínez", "Andrea Longarela", "Tamara Molina",
+  "Adriana Criado", "Irene Franco", "Paula Ramos", "Irina Suoma",
+];
 
-  const docs = res.data.docs.slice(0, 20);
+function processBooks(docs: any[]): any[] {
+  // Prioritize books with covers and sort by edition_count (popularity proxy)
+  return docs
+    .filter((d: any) => d.cover_i)
+    .sort((a: any, b: any) => (b.edition_count || 0) - (a.edition_count || 0));
+}
 
-  // Fetch descriptions in parallel for all books
-  const booksWithDescriptions = await Promise.all(
+async function docsToBooks(docs: any[]): Promise<BookData[]> {
+  return Promise.all(
     docs.map(async (book: any) => {
-      const workKey = book.key; // e.g., /works/OL12345W
       let description = book.first_sentence?.[0] || "";
-
-      // If no first_sentence, fetch from works API
-      if (!description && workKey) {
-        description = await fetchDescription(workKey);
+      if (!description && book.key) {
+        description = await fetchDescription(book.key);
       }
-
-      // Truncate very long descriptions
       if (description.length > 500) {
         description = description.substring(0, 497) + "...";
       }
-
       return {
         title: book.title,
         author: book.author_name?.[0] || "Desconocido",
@@ -67,8 +72,55 @@ export async function searchBooks(query: string): Promise<BookData[]> {
       };
     })
   );
+}
 
-  return booksWithDescriptions;
+/**
+ * Search books by title, author, or any query.
+ * Sorts by new and boosts popular YA authors when searching genres.
+ */
+export async function searchBooks(query: string): Promise<BookData[]> {
+  // Search with sort=new to get recent books first
+  const [mainRes, authorRes] = await Promise.allSettled([
+    axios.get(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    ),
+    // Also search for curated authors + query for better YA results
+    axios.get(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=editions&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    ),
+  ]);
+
+  const allDocs: any[] = [];
+  const seenTitles = new Set<string>();
+
+  // Merge both result sets, deduplicate
+  for (const result of [authorRes, mainRes]) {
+    if (result.status === "fulfilled") {
+      for (const doc of result.value.data.docs) {
+        const key = doc.title?.toLowerCase();
+        if (key && !seenTitles.has(key)) {
+          seenTitles.add(key);
+          allDocs.push(doc);
+        }
+      }
+    }
+  }
+
+  // Boost curated authors to the top
+  const boosted = allDocs.sort((a, b) => {
+    const aIsCurated = CURATED_AUTHORS.some(
+      (ca) => a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    const bIsCurated = CURATED_AUTHORS.some(
+      (ca) => b.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
+    );
+    if (aIsCurated && !bIsCurated) return -1;
+    if (!aIsCurated && bIsCurated) return 1;
+    return (b.edition_count || 0) - (a.edition_count || 0);
+  });
+
+  const filtered = processBooks(boosted).slice(0, 20);
+  return docsToBooks(filtered);
 }
 
 /**
