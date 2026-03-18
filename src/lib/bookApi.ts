@@ -133,3 +133,40 @@ export async function searchByDescription(description: string): Promise<BookData
 
   return booksWithDescriptions;
 }
+
+/**
+ * Fetch trending / new books from Open Library's trending API.
+ */
+export async function fetchTrendingBooks(): Promise<BookData[]> {
+  const res = await axios.get(
+    `https://openlibrary.org/trending/daily.json?limit=20`
+  );
+
+  const works = res.data.works?.slice(0, 20) || [];
+
+  const books = await Promise.all(
+    works.map(async (work: any) => {
+      const workKey = work.key; // e.g. /works/OL123W
+      let description = "";
+
+      if (workKey) {
+        description = await fetchDescription(workKey);
+      }
+
+      if (description.length > 500) {
+        description = description.substring(0, 497) + "...";
+      }
+
+      return {
+        title: work.title,
+        author: work.author_name?.[0] || "Desconocido",
+        cover: work.cover_i
+          ? `https://covers.openlibrary.org/b/id/${work.cover_i}-L.jpg`
+          : null,
+        description: description || "Sinopsis no disponible para este título.",
+      };
+    })
+  );
+
+  return books;
+}
