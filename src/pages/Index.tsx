@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked } from "lucide-react";
 import BookCard, { BookData } from "@/components/BookCard";
-import { searchBooks, searchByDescription } from "@/lib/bookApi";
+import { searchBooks, searchByDescription, fetchTrendingBooks } from "@/lib/bookApi";
 
 type SearchMode = "title" | "description";
 
@@ -14,6 +14,15 @@ const Index = () => {
   const [searched, setSearched] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>("title");
+  const [trendingBooks, setTrendingBooks] = useState<BookData[]>([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+
+  useEffect(() => {
+    fetchTrendingBooks()
+      .then(setTrendingBooks)
+      .catch(() => setTrendingBooks([]))
+      .finally(() => setLoadingTrending(false));
+  }, []);
 
   useEffect(() => {
     const saved: BookData[] = JSON.parse(localStorage.getItem("favorites") || "[]");
@@ -169,6 +178,26 @@ const Index = () => {
                   {suggestion.label}
                 </button>
               ))}
+            </div>
+
+            {/* Trending / New books */}
+            <div className="mt-16 w-full">
+              <h3 className="mb-6 text-center font-display text-3xl text-foreground">
+                📚 NOVEDADES Y TENDENCIAS
+              </h3>
+              {loadingTrending ? (
+                <div className="flex justify-center py-10">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              ) : trendingBooks.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {trendingBooks.map((book, i) => (
+                    <BookCard key={`trending-${book.title}-${i}`} book={book} index={i} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground">No se pudieron cargar las novedades.</p>
+              )}
             </div>
           </motion.div>
         )}
