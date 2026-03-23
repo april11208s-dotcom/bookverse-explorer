@@ -30,11 +30,14 @@ const Index = () => {
     setFavorites(saved);
   }, [books]);
 
+  const [searchParamsURL, setSearchParamsURL] = useSearchParams();
+
   const handleSearch = async () => {
     if (!query.trim()) return;
     setLoading(true);
     setSearched(true);
     setShowFavorites(false);
+    setSearchParamsURL({ q: query });
     try {
       const results =
         searchMode === "description"
