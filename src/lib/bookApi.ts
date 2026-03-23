@@ -1,5 +1,6 @@
 import axios from "axios";
 import { BookData } from "@/components/BookCard";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Fetch the description/synopsis for a book from Open Library Works API.
