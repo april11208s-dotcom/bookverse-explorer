@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
 import { searchBooks, searchByDescription, fetchTrendingBooks } from "@/lib/bookApi";
 
