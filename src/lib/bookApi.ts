@@ -1,5 +1,6 @@
 import axios from "axios";
 import { BookData } from "@/components/BookCard";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Fetch the description/synopsis for a book from Open Library Works API.
@@ -131,10 +132,10 @@ export async function searchBooks(query: string): Promise<BookData[]> {
 export async function searchByDescription(description: string): Promise<BookData[]> {
   const [searchRes, subjectRes] = await Promise.allSettled([
     axios.get(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     ),
     axios.get(
-      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&sort=editions&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&sort=editions&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     ),
   ]);
 
@@ -153,7 +154,7 @@ export async function searchByDescription(description: string): Promise<BookData
     }
   }
 
-  // Boost curated authors
+  // Boost curated authors first
   const boosted = allDocs.sort((a, b) => {
     const aIsCurated = CURATED_AUTHORS.some(
       (ca) => a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
@@ -166,8 +167,32 @@ export async function searchByDescription(description: string): Promise<BookData
     return (b.edition_count || 0) - (a.edition_count || 0);
   });
 
-  const filtered = processBooks(boosted).slice(0, 20);
-  return docsToBooks(filtered);
+  const filtered = processBooks(boosted).slice(0, 25);
+  const booksForAI = filtered.map((doc: any) => ({
+    title: doc.title,
+    author: doc.author_name?.[0] || "Desconocido",
+    description: doc.first_sentence?.[0] || "",
+    first_publish_year: doc.first_publish_year || null,
+  }));
+
+  // Use AI to rank by relevance to the description
+  try {
+    const { data, error } = await supabase.functions.invoke("rank-books", {
+      body: { userQuery: description, books: booksForAI },
+    });
+
+    if (!error && data?.ranked) {
+      const rankedDocs = data.ranked
+        .filter((i: number) => i >= 0 && i < filtered.length)
+        .map((i: number) => filtered[i]);
+      return docsToBooks(rankedDocs.slice(0, 20));
+    }
+  } catch (e) {
+    console.warn("AI ranking failed, using default order:", e);
+  }
+
+  // Fallback: return without AI ranking
+  return docsToBooks(filtered.slice(0, 20));
 }
 
 /**
