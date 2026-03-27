@@ -6,6 +6,19 @@ import { supabase } from "@/integrations/supabase/client";
  * Fetch the description/synopsis for a book from Open Library Works API.
  * Falls back through multiple fields to maximize coverage.
  */
+/**
+ * Clean book titles by removing edition/format noise like
+ * "Hardcover", "Box Set", "Paperback", etc.
+ */
+function cleanTitle(title: string): string {
+  return title
+    .replace(/\s*\(.*?(hardcover|paperback|box\s*set|edition|reprint|anniversary|deluxe|collector|omnibus|bind-up|mass\s*market).*?\)/gi, "")
+    .replace(/\s*\[.*?(hardcover|paperback|box\s*set|edition).*?\]/gi, "")
+    .replace(/\s*[-–:]\s*(hardcover|paperback|box\s*set|a novel|the novel|the complete|complete collection).*$/gi, "")
+    .replace(/\s*(hardcover|paperback|box\s*set)$/gi, "")
+    .trim();
+}
+
 async function fetchDescription(workKey: string): Promise<string> {
   try {
     const res = await axios.get(`https://openlibrary.org${workKey}.json`, { timeout: 5000 });
