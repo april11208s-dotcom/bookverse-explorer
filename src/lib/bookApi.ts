@@ -44,6 +44,10 @@ const CURATED_AUTHORS = [
   "Sara Barquinero", "Andrea Abreu", "Layla Martínez",
   "María Martínez", "Andrea Longarela", "Tamara Molina",
   "Adriana Criado", "Irene Franco", "Paula Ramos", "Irina Suoma",
+  // Autoras hispanohablantes populares
+  "Joana Marcús", "Mercedes Ron", "Inma Rubiales", "Eloy Moreno",
+  "Chloe Walsh", "Care Santos",
+  "Iria G. Parente", "Selene M. Pascual",
 ];
 
 function processBooks(docs: any[]): any[] {
