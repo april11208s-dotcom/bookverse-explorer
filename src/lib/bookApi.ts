@@ -6,6 +6,19 @@ import { supabase } from "@/integrations/supabase/client";
  * Fetch the description/synopsis for a book from Open Library Works API.
  * Falls back through multiple fields to maximize coverage.
  */
+/**
+ * Clean book titles by removing edition/format noise like
+ * "Hardcover", "Box Set", "Paperback", etc.
+ */
+function cleanTitle(title: string): string {
+  return title
+    .replace(/\s*\(.*?(hardcover|paperback|box\s*set|edition|reprint|anniversary|deluxe|collector|omnibus|bind-up|mass\s*market).*?\)/gi, "")
+    .replace(/\s*\[.*?(hardcover|paperback|box\s*set|edition).*?\]/gi, "")
+    .replace(/\s*[-–:]\s*(hardcover|paperback|box\s*set|a novel|the novel|the complete|complete collection).*$/gi, "")
+    .replace(/\s*(hardcover|paperback|box\s*set)$/gi, "")
+    .trim();
+}
+
 async function fetchDescription(workKey: string): Promise<string> {
   try {
     const res = await axios.get(`https://openlibrary.org${workKey}.json`, { timeout: 5000 });
@@ -44,6 +57,10 @@ const CURATED_AUTHORS = [
   "Sara Barquinero", "Andrea Abreu", "Layla Martínez",
   "María Martínez", "Andrea Longarela", "Tamara Molina",
   "Adriana Criado", "Irene Franco", "Paula Ramos", "Irina Suoma",
+  // Autoras hispanohablantes populares
+  "Joana Marcús", "Mercedes Ron", "Inma Rubiales", "Eloy Moreno",
+  "Chloe Walsh", "Care Santos",
+  "Iria G. Parente", "Selene M. Pascual",
 ];
 
 function processBooks(docs: any[]): any[] {
@@ -64,7 +81,7 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
         description = description.substring(0, 497) + "...";
       }
       return {
-        title: book.title,
+        title: cleanTitle(book.title),
         author: book.author_name?.[0] || "Desconocido",
         cover: book.cover_i
           ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`
