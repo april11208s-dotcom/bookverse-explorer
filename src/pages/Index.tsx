@@ -229,6 +229,8 @@ const Index = () => {
                   ? "MIS FAVORITOS"
                   : searchMode === "description"
                   ? "LIBROS QUE COINCIDEN CON TU DESCRIPCIÓN"
+                  : searchMode === "author"
+                  ? `LIBROS DE "${query.toUpperCase()}"`
                   : `RESULTADOS PARA "${query.toUpperCase()}"`}
               </h2>
               {searched && !showFavorites && searchMode === "description" && (
