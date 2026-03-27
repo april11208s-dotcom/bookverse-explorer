@@ -216,13 +216,21 @@ export async function searchByDescription(description: string): Promise<BookData
  * Fetch curated YA books from popular authors in romance & fantasy.
  */
 export async function fetchTrendingBooks(): Promise<BookData[]> {
-  const results = await Promise.allSettled(
-    CURATED_AUTHORS.map((author) =>
-      axios.get(
-        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=4&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count`
-      )
+  // Search by author name AND also by title for authors whose books might be catalogued differently
+  const authorSearches = CURATED_AUTHORS.map((author) =>
+    axios.get(
+      `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=8&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
     )
   );
+
+  // Also search by author name as query (catches more results)
+  const querySearches = CURATED_AUTHORS.map((author) =>
+    axios.get(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    )
+  );
+
+  const results = await Promise.allSettled([...authorSearches, ...querySearches]);
 
   const allDocs: any[] = [];
   const seenTitles = new Set<string>();
@@ -230,15 +238,18 @@ export async function fetchTrendingBooks(): Promise<BookData[]> {
   for (const result of results) {
     if (result.status === "fulfilled") {
       for (const doc of result.value.data.docs) {
-        const key = doc.title?.toLowerCase();
-        if (key && !seenTitles.has(key) && doc.cover_i) {
-          seenTitles.add(key);
+        const cleanedTitle = cleanTitle(doc.title || "").toLowerCase();
+        if (cleanedTitle && !seenTitles.has(cleanedTitle) && doc.cover_i) {
+          seenTitles.add(cleanedTitle);
           allDocs.push(doc);
         }
       }
     }
   }
 
-  const top30 = allDocs.slice(0, 30);
-  return docsToBooks(top30);
+  // Sort by most recent first
+  allDocs.sort((a, b) => (b.first_publish_year || 0) - (a.first_publish_year || 0));
+
+  const top50 = allDocs.slice(0, 50);
+  return docsToBooks(top50);
 }
