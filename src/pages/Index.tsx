@@ -255,6 +255,8 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">
               {searchMode === "description"
                 ? "Buscando libros que coincidan con tu descripción..."
+                : searchMode === "author"
+                ? "Buscando libros de este autor..."
                 : "Buscando libros y cargando sinopsis..."}
             </p>
           </div>
