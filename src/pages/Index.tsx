@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
-import { searchBooks, searchByDescription, fetchTrendingBooks } from "@/lib/bookApi";
+import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
 
-type SearchMode = "title" | "description";
+type SearchMode = "title" | "description" | "author";
 
 const Index = () => {
   const [query, setQuery] = useState("");

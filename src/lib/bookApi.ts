@@ -96,6 +96,41 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
  * Search books by title, author, or any query.
  * Sorts by new and boosts popular YA authors when searching genres.
  */
+/**
+ * Search books by author name.
+ */
+export async function searchByAuthor(authorName: string): Promise<BookData[]> {
+  const [authorRes, queryRes] = await Promise.allSettled([
+    axios.get(
+      `https://openlibrary.org/search.json?author=${encodeURIComponent(authorName)}&sort=new&limit=40&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    ),
+    axios.get(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(authorName)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+    ),
+  ]);
+
+  const allDocs: any[] = [];
+  const seenTitles = new Set<string>();
+
+  for (const result of [authorRes, queryRes]) {
+    if (result.status === "fulfilled") {
+      for (const doc of result.value.data.docs) {
+        const cleanedTitle = cleanTitle(doc.title || "").toLowerCase();
+        if (cleanedTitle && !seenTitles.has(cleanedTitle)) {
+          seenTitles.add(cleanedTitle);
+          allDocs.push(doc);
+        }
+      }
+    }
+  }
+
+  // Sort by most recent first
+  allDocs.sort((a, b) => (b.first_publish_year || 0) - (a.first_publish_year || 0));
+
+  const filtered = processBooks(allDocs).slice(0, 25);
+  return docsToBooks(filtered);
+}
+
 export async function searchBooks(query: string): Promise<BookData[]> {
   // Search with sort=new to get recent books first
   const [mainRes, authorRes] = await Promise.allSettled([
