@@ -89,6 +89,17 @@ const Index = () => {
                 <span className="hidden sm:inline">Título</span>
               </button>
               <button
+                onClick={() => setSearchMode("author")}
+                className={`flex items-center gap-1 px-3 text-xs font-medium transition-all ${
+                  searchMode === "author"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <User className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Autor</span>
+              </button>
+              <button
                 onClick={() => setSearchMode("description")}
                 className={`flex items-center gap-1 px-3 text-xs font-medium transition-all ${
                   searchMode === "description"
