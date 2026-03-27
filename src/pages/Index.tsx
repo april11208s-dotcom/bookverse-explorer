@@ -57,8 +57,9 @@ const Index = () => {
   const displayBooks = showFavorites ? favorites : books;
 
   const placeholders: Record<SearchMode, string> = {
-    title: "Buscar por título o autor...",
+    title: "Buscar por título...",
     description: "Describe lo que quieres leer... ej: aventuras en el espacio",
+    author: "Buscar por autor... ej: Chloe Walsh",
   };
 
   return (
