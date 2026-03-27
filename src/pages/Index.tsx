@@ -42,6 +42,8 @@ const Index = () => {
       const results =
         searchMode === "description"
           ? await searchByDescription(query)
+          : searchMode === "author"
+          ? await searchByAuthor(query)
           : await searchBooks(query);
       setBooks(results);
     } catch {
