@@ -1,50 +1,53 @@
-import { Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sparkles, Loader2 } from "lucide-react";
 import { BookData } from "./BookCard";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookRecommendationProps {
   book: BookData;
   searchQuery: string | null;
 }
 
-function generateRecommendation(book: BookData, searchQuery: string | null): string {
-  const title = book.title;
-  const author = book.author;
-
-  if (!searchQuery) {
-    return `"${title}" de ${author} es una lectura imprescindible. Con una narrativa envolvente y personajes memorables, este libro te atrapará desde la primera página.`;
-  }
-
-  const q = searchQuery.toLowerCase();
-  const reasons: string[] = [];
-
-  if (q.includes("romance") || q.includes("love") || q.includes("amor")) {
-    reasons.push("una historia de amor que te hará suspirar");
-  }
-  if (q.includes("fantasy") || q.includes("fantasía") || q.includes("magic") || q.includes("magia")) {
-    reasons.push("un mundo de fantasía rico y envolvente");
-  }
-  if (q.includes("adventure") || q.includes("aventura")) {
-    reasons.push("aventuras épicas que te mantendrán al borde del asiento");
-  }
-  if (q.includes("mystery") || q.includes("misterio") || q.includes("thriller")) {
-    reasons.push("giros inesperados que no podrás predecir");
-  }
-  if (q.includes("science fiction") || q.includes("ciencia ficción") || q.includes("space") || q.includes("espacio")) {
-    reasons.push("una exploración fascinante de mundos futuristas");
-  }
-  if (q.includes("dragon") || q.includes("dragón") || q.includes("dragones")) {
-    reasons.push("dragones y criaturas míticas que cobran vida");
-  }
-
-  if (reasons.length === 0) {
-    reasons.push("una trama que conecta directamente con lo que buscas");
-  }
-
-  return `Basándonos en tu búsqueda "${searchQuery}", te recomendamos "${title}" de ${author} porque ofrece ${reasons.join(" y ")}. Este libro ha cautivado a miles de lectores con su narrativa única y personajes profundos que te acompañarán mucho después de la última página.`;
-}
-
 const BookRecommendation = ({ book, searchQuery }: BookRecommendationProps) => {
-  const recommendation = generateRecommendation(book, searchQuery);
+  const [recommendation, setRecommendation] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchRecommendation = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("recommend-book", {
+          body: {
+            title: book.title,
+            author: book.author,
+            description: book.description,
+            searchQuery,
+          },
+        });
+
+        if (!cancelled && !error && data?.recommendation) {
+          setRecommendation(data.recommendation);
+        } else if (!cancelled) {
+          setRecommendation(
+            `"${book.title}" de ${book.author} es una lectura imprescindible. Con una narrativa envolvente y personajes memorables, este libro te atrapará desde la primera página.`
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendation(
+            `"${book.title}" de ${book.author} es una lectura imprescindible con una narrativa única que no te puedes perder.`
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchRecommendation();
+    return () => { cancelled = true; };
+  }, [book.title, book.author, book.description, searchQuery]);
 
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 p-5">
@@ -52,7 +55,14 @@ const BookRecommendation = ({ book, searchQuery }: BookRecommendationProps) => {
         <Sparkles className="h-5 w-5 text-primary" />
         <h3 className="font-display text-2xl text-primary">¿POR QUÉ TE LO RECOMENDAMOS?</h3>
       </div>
-      <p className="text-sm leading-relaxed text-secondary-foreground">{recommendation}</p>
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Generando recomendación personalizada...
+        </div>
+      ) : (
+        <p className="text-sm leading-relaxed text-secondary-foreground">{recommendation}</p>
+      )}
     </div>
   );
 };
