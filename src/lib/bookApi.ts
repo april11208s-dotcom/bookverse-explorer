@@ -81,7 +81,7 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
         description = description.substring(0, 497) + "...";
       }
       return {
-        title: book.title,
+        title: cleanTitle(book.title),
         author: book.author_name?.[0] || "Desconocido",
         cover: book.cover_i
           ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`
