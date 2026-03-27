@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked } from "lucide-react";
+import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
-import { searchBooks, searchByDescription, fetchTrendingBooks } from "@/lib/bookApi";
+import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
 
-type SearchMode = "title" | "description";
+type SearchMode = "title" | "description" | "author";
 
 const Index = () => {
   const [query, setQuery] = useState("");
@@ -42,6 +42,8 @@ const Index = () => {
       const results =
         searchMode === "description"
           ? await searchByDescription(query)
+          : searchMode === "author"
+          ? await searchByAuthor(query)
           : await searchBooks(query);
       setBooks(results);
     } catch {
@@ -57,8 +59,9 @@ const Index = () => {
   const displayBooks = showFavorites ? favorites : books;
 
   const placeholders: Record<SearchMode, string> = {
-    title: "Buscar por título o autor...",
+    title: "Buscar por título...",
     description: "Describe lo que quieres leer... ej: aventuras en el espacio",
+    author: "Buscar por autor... ej: Chloe Walsh",
   };
 
   return (
@@ -84,6 +87,17 @@ const Index = () => {
               >
                 <BookMarked className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Título</span>
+              </button>
+              <button
+                onClick={() => setSearchMode("author")}
+                className={`flex items-center gap-1 px-3 text-xs font-medium transition-all ${
+                  searchMode === "author"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <User className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Autor</span>
               </button>
               <button
                 onClick={() => setSearchMode("description")}
@@ -215,6 +229,8 @@ const Index = () => {
                   ? "MIS FAVORITOS"
                   : searchMode === "description"
                   ? "LIBROS QUE COINCIDEN CON TU DESCRIPCIÓN"
+                  : searchMode === "author"
+                  ? `LIBROS DE "${query.toUpperCase()}"`
                   : `RESULTADOS PARA "${query.toUpperCase()}"`}
               </h2>
               {searched && !showFavorites && searchMode === "description" && (
@@ -239,6 +255,8 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">
               {searchMode === "description"
                 ? "Buscando libros que coincidan con tu descripción..."
+                : searchMode === "author"
+                ? "Buscando libros de este autor..."
                 : "Buscando libros y cargando sinopsis..."}
             </p>
           </div>
