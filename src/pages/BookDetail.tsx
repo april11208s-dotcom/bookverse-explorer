@@ -60,7 +60,7 @@ const BookDetail = () => {
       <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="container mx-auto flex items-center gap-3 px-4 py-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/")}
             className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm text-secondary-foreground transition-all hover:bg-accent"
           >
             <ArrowLeft className="h-4 w-4" />
