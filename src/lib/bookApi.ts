@@ -120,6 +120,24 @@ const CURATED_AUTHORS = [
   "Care Santos",
   "Iria G. Parente",
   "Selene M. Pascual",
+  // Fantasía épica
+  "George R. R. Martin",
+  "Brandon Sanderson",
+  "Patrick Rothfuss",
+  "Joe Abercrombie",
+];
+
+/**
+ * Specific must-have sagas/books to surface in trending and prioritise.
+ */
+const FEATURED_SAGAS = [
+  "A Song of Ice and Fire",
+  "Game of Thrones",
+  "A Clash of Kings",
+  "A Storm of Swords",
+  "A Feast for Crows",
+  "A Dance with Dragons",
+  "Fire and Blood",
 ];
 
 function processBooks(docs: any[]): any[] {
@@ -309,14 +327,21 @@ export async function searchByDescription(description: string): Promise<BookData
  * Fetch curated YA books from popular authors in romance & fantasy.
  */
 export async function fetchTrendingBooks(): Promise<BookData[]> {
-  const requests = CURATED_AUTHORS.flatMap((author) => [
-    fetchDocs(
-      `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=8&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+  const requests = [
+    ...CURATED_AUTHORS.flatMap((author) => [
+      fetchDocs(
+        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=8&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      ),
+      fetchDocs(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      ),
+    ]),
+    ...FEATURED_SAGAS.map((saga) =>
+      fetchDocs(
+        `https://openlibrary.org/search.json?title=${encodeURIComponent(saga)}&sort=editions&limit=4&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      )
     ),
-    fetchDocs(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
-  ]);
+  ];
 
   const results = await Promise.all(requests);
   const allDocs: any[] = [];
