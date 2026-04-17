@@ -327,14 +327,21 @@ export async function searchByDescription(description: string): Promise<BookData
  * Fetch curated YA books from popular authors in romance & fantasy.
  */
 export async function fetchTrendingBooks(): Promise<BookData[]> {
-  const requests = CURATED_AUTHORS.flatMap((author) => [
-    fetchDocs(
-      `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=8&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+  const requests = [
+    ...CURATED_AUTHORS.flatMap((author) => [
+      fetchDocs(
+        `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&sort=new&limit=8&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      ),
+      fetchDocs(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      ),
+    ]),
+    ...FEATURED_SAGAS.map((saga) =>
+      fetchDocs(
+        `https://openlibrary.org/search.json?title=${encodeURIComponent(saga)}&sort=editions&limit=4&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
+      )
     ),
-    fetchDocs(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
-  ]);
+  ];
 
   const results = await Promise.all(requests);
   const allDocs: any[] = [];
