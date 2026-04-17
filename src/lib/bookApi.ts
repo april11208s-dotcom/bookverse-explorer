@@ -6,6 +6,7 @@ const SEARCH_TIMEOUT_MS = 8000;
 const DESCRIPTION_TIMEOUT_MS = 3500;
 const AI_TIMEOUT_MS = 6000;
 const MAX_DESCRIPTION_FETCHES = 8;
+const MIN_RESULTS_WITH_COVERS = 6;
 
 /**
  * Clean book titles by removing edition/format noise like
@@ -17,6 +18,14 @@ function cleanTitle(title: string): string {
     .replace(/\s*\[.*?(hardcover|paperback|box\s*set|edition).*?\]/gi, "")
     .replace(/\s*[-–:]\s*(hardcover|paperback|box\s*set|a novel|the novel|the complete|complete collection).*$/gi, "")
     .replace(/\s*(hardcover|paperback|box\s*set)$/gi, "")
+    .trim();
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
     .trim();
 }
 
@@ -120,7 +129,6 @@ const CURATED_AUTHORS = [
   "Care Santos",
   "Iria G. Parente",
   "Selene M. Pascual",
-  // Fantasía épica
   "George R. R. Martin",
   "Brandon Sanderson",
   "Patrick Rothfuss",
@@ -131,19 +139,131 @@ const CURATED_AUTHORS = [
  * Specific must-have sagas/books to surface in trending and prioritise.
  */
 const FEATURED_SAGAS = [
-  "A Song of Ice and Fire",
-  "Game of Thrones",
+  "A Game of Thrones",
   "A Clash of Kings",
   "A Storm of Swords",
   "A Feast for Crows",
   "A Dance with Dragons",
+  "A Song of Ice and Fire",
   "Fire and Blood",
 ];
 
-function processBooks(docs: any[]): any[] {
-  return docs
-    .filter((d: any) => d.cover_i)
-    .sort((a: any, b: any) => (b.edition_count || 0) - (a.edition_count || 0));
+const QUERY_ALIASES: Record<string, string[]> = {
+  fantasia: ["fantasy", "fantasía", "romantasy", "young adult fantasy"],
+  "juego de tronos": ["A Game of Thrones", "Game of Thrones", "A Song of Ice and Fire", "George R. R. Martin"],
+  "game of thrones": ["A Game of Thrones", "A Song of Ice and Fire", "George R. R. Martin"],
+  "cancion de hielo y fuego": ["A Song of Ice and Fire", "A Game of Thrones", "George R. R. Martin"],
+  "canción de hielo y fuego": ["A Song of Ice and Fire", "A Game of Thrones", "George R. R. Martin"],
+};
+
+function expandQueries(query: string): string[] {
+  const normalized = normalizeText(query);
+  const aliases = Object.entries(QUERY_ALIASES).flatMap(([key, values]) =>
+    normalized.includes(key) ? values : []
+  );
+
+  return Array.from(new Set([query, ...aliases]));
+}
+
+function dedupeDocs(docs: any[]): any[] {
+  const uniqueDocs: any[] = [];
+  const seenTitles = new Set<string>();
+
+  for (const doc of docs) {
+    const cleanedTitle = cleanTitle(doc.title || "").toLowerCase();
+    if (cleanedTitle && !seenTitles.has(cleanedTitle)) {
+      seenTitles.add(cleanedTitle);
+      uniqueDocs.push(doc);
+    }
+  }
+
+  return uniqueDocs;
+}
+
+function isFeaturedSagaTitle(title: string): boolean {
+  const normalizedTitle = normalizeText(cleanTitle(title));
+  return FEATURED_SAGAS.some((saga) => normalizedTitle.includes(normalizeText(saga)));
+}
+
+function getBoostScore(doc: any, query: string): number {
+  const normalizedQuery = normalizeText(query);
+  const normalizedTitle = normalizeText(doc.title || "");
+  const normalizedAuthor = normalizeText(doc.author_name?.[0] || "");
+
+  let score = doc.edition_count || 0;
+
+  if (CURATED_AUTHORS.some((author) => normalizedAuthor.includes(normalizeText(author)))) {
+    score += 10000;
+  }
+
+  if (isFeaturedSagaTitle(normalizedTitle)) {
+    score += 15000;
+  }
+
+  if (
+    normalizedQuery.includes("juego de tronos") ||
+    normalizedQuery.includes("game of thrones") ||
+    normalizedQuery.includes("hielo y fuego")
+  ) {
+    if (
+      normalizedAuthor.includes("george r. r. martin") ||
+      normalizedTitle.includes("game of thrones") ||
+      normalizedTitle.includes("song of ice and fire") ||
+      normalizedTitle.includes("choque de reyes") ||
+      normalizedTitle.includes("storm of swords")
+    ) {
+      score += 25000;
+    }
+  }
+
+  if (normalizedQuery.includes("fantasia") || normalizedQuery.includes("fantasy")) {
+    if (
+      normalizedAuthor.includes("brandon sanderson") ||
+      normalizedAuthor.includes("laura gallego") ||
+      normalizedAuthor.includes("holly black") ||
+      normalizedAuthor.includes("patrick rothfuss") ||
+      normalizedAuthor.includes("george r. r. martin")
+    ) {
+      score += 12000;
+    }
+  }
+
+  return score;
+}
+
+function processBooks(docs: any[], query = ""): any[] {
+  const sorted = [...docs].sort((a, b) => getBoostScore(b, query) - getBoostScore(a, query));
+  const withCover = sorted.filter((d: any) => d.cover_i);
+
+  return withCover.length >= MIN_RESULTS_WITH_COVERS ? withCover : sorted;
+}
+
+async function fetchMergedDocs(
+  queries: string[],
+  builders: Array<(query: string) => string>
+): Promise<any[]> {
+  const results = await Promise.all(
+    queries.flatMap((query) => builders.map((builder) => fetchDocs(builder(query))))
+  );
+
+  return dedupeDocs(results.flat());
+}
+
+async function fetchFantasyFallbackDocs(): Promise<any[]> {
+  const fallbackQueries = [
+    ...FEATURED_SAGAS,
+    "George R. R. Martin",
+    "Brandon Sanderson",
+    "Laura Gallego",
+    "Holly Black",
+  ];
+
+  return fetchMergedDocs(fallbackQueries, [
+    (query) =>
+      `https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&sort=editions&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
+    (query) =>
+      `https://openlibrary.org/search.json?author=${encodeURIComponent(query)}&sort=editions&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
+  ]);
 }
 
 async function docsToBooks(docs: any[]): Promise<BookData[]> {
@@ -186,71 +306,42 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
  * Search books by author name.
  */
 export async function searchByAuthor(authorName: string): Promise<BookData[]> {
-  const [authorDocs, queryDocs] = await Promise.all([
-    fetchDocs(
-      `https://openlibrary.org/search.json?author=${encodeURIComponent(authorName)}&sort=new&limit=40&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
-    fetchDocs(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(authorName)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
+  const queries = expandQueries(authorName);
+  const allDocs = await fetchMergedDocs(queries, [
+    (query) =>
+      `https://openlibrary.org/search.json?author=${encodeURIComponent(query)}&sort=new&limit=40&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
+    (query) =>
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
 
-  const allDocs: any[] = [];
-  const seenTitles = new Set<string>();
-
-  for (const doc of [...authorDocs, ...queryDocs]) {
-    const cleanedTitle = cleanTitle(doc.title || "").toLowerCase();
-    if (cleanedTitle && !seenTitles.has(cleanedTitle)) {
-      seenTitles.add(cleanedTitle);
-      allDocs.push(doc);
-    }
-  }
-
   allDocs.sort((a, b) => (b.first_publish_year || 0) - (a.first_publish_year || 0));
-
-  const filtered = processBooks(allDocs).slice(0, 25);
-  return docsToBooks(filtered);
+  return docsToBooks(processBooks(allDocs, authorName).slice(0, 25));
 }
 
 /**
  * Search books by title, author, or any query.
  */
 export async function searchBooks(query: string): Promise<BookData[]> {
-  const [mainDocs, authorDocs] = await Promise.all([
-    fetchDocs(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
-    fetchDocs(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=editions&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
+  const queries = expandQueries(query);
+  const normalizedQuery = normalizeText(query);
+
+  let allDocs = await fetchMergedDocs(queries, [
+    (value) =>
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(value)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
+    (value) =>
+      `https://openlibrary.org/search.json?title=${encodeURIComponent(value)}&sort=editions&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
 
-  const allDocs: any[] = [];
-  const seenTitles = new Set<string>();
-
-  for (const doc of [...authorDocs, ...mainDocs]) {
-    const key = cleanTitle(doc.title || "").toLowerCase();
-    if (key && !seenTitles.has(key)) {
-      seenTitles.add(key);
-      allDocs.push(doc);
-    }
+  if (
+    normalizedQuery.includes("juego de tronos") ||
+    normalizedQuery.includes("game of thrones") ||
+    normalizedQuery.includes("hielo y fuego")
+  ) {
+    const sagaDocs = await fetchFantasyFallbackDocs();
+    allDocs = dedupeDocs([...sagaDocs, ...allDocs]);
   }
 
-  const boosted = allDocs.sort((a, b) => {
-    const aIsCurated = CURATED_AUTHORS.some((ca) =>
-      a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
-    );
-    const bIsCurated = CURATED_AUTHORS.some((ca) =>
-      b.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
-    );
-
-    if (aIsCurated && !bIsCurated) return -1;
-    if (!aIsCurated && bIsCurated) return 1;
-    return (b.edition_count || 0) - (a.edition_count || 0);
-  });
-
-  const filtered = processBooks(boosted).slice(0, 20);
-  return docsToBooks(filtered);
+  return docsToBooks(processBooks(allDocs, query).slice(0, 20));
 }
 
 /**
@@ -258,40 +349,31 @@ export async function searchBooks(query: string): Promise<BookData[]> {
  * Uses Open Library's subject search for more relevant results.
  */
 export async function searchByDescription(description: string): Promise<BookData[]> {
-  const [searchDocs, subjectDocs] = await Promise.all([
-    fetchDocs(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(description)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
-    fetchDocs(
-      `https://openlibrary.org/search.json?subject=${encodeURIComponent(description)}&sort=editions&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
-    ),
+  const queries = expandQueries(description);
+  const normalizedDescription = normalizeText(description);
+
+  let allDocs = await fetchMergedDocs(queries, [
+    (query) =>
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
+    (query) =>
+      `https://openlibrary.org/search.json?subject=${encodeURIComponent(query)}&sort=editions&limit=30&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
 
-  const allDocs: any[] = [];
-  const seenTitles = new Set<string>();
-
-  for (const doc of [...subjectDocs, ...searchDocs]) {
-    const key = cleanTitle(doc.title || "").toLowerCase();
-    if (key && !seenTitles.has(key)) {
-      seenTitles.add(key);
-      allDocs.push(doc);
-    }
+  if (
+    !allDocs.length ||
+    normalizedDescription.includes("fantasia") ||
+    normalizedDescription.includes("fantasy")
+  ) {
+    const fallbackDocs = await fetchFantasyFallbackDocs();
+    allDocs = dedupeDocs([...fallbackDocs, ...allDocs]);
   }
 
-  const boosted = allDocs.sort((a, b) => {
-    const aIsCurated = CURATED_AUTHORS.some((ca) =>
-      a.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
-    );
-    const bIsCurated = CURATED_AUTHORS.some((ca) =>
-      b.author_name?.[0]?.toLowerCase().includes(ca.toLowerCase())
-    );
+  const filtered = processBooks(allDocs, description).slice(0, 25);
 
-    if (aIsCurated && !bIsCurated) return -1;
-    if (!aIsCurated && bIsCurated) return 1;
-    return (b.edition_count || 0) - (a.edition_count || 0);
-  });
+  if (!filtered.length) {
+    return [];
+  }
 
-  const filtered = processBooks(boosted).slice(0, 25);
   const booksForAI = filtered.map((doc: any) => ({
     title: doc.title,
     author: doc.author_name?.[0] || "Desconocido",
@@ -344,19 +426,8 @@ export async function fetchTrendingBooks(): Promise<BookData[]> {
   ];
 
   const results = await Promise.all(requests);
-  const allDocs: any[] = [];
-  const seenTitles = new Set<string>();
-
-  for (const docs of results) {
-    for (const doc of docs) {
-      const cleanedTitle = cleanTitle(doc.title || "").toLowerCase();
-      if (cleanedTitle && !seenTitles.has(cleanedTitle) && doc.cover_i) {
-        seenTitles.add(cleanedTitle);
-        allDocs.push(doc);
-      }
-    }
-  }
-
+  const allDocs = dedupeDocs(results.flat());
   allDocs.sort((a, b) => (b.first_publish_year || 0) - (a.first_publish_year || 0));
-  return docsToBooks(allDocs.slice(0, 50));
+
+  return docsToBooks(processBooks(allDocs, "fantasia").slice(0, 50));
 }
