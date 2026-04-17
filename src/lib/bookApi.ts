@@ -120,6 +120,24 @@ const CURATED_AUTHORS = [
   "Care Santos",
   "Iria G. Parente",
   "Selene M. Pascual",
+  // Fantasía épica
+  "George R. R. Martin",
+  "Brandon Sanderson",
+  "Patrick Rothfuss",
+  "Joe Abercrombie",
+];
+
+/**
+ * Specific must-have sagas/books to surface in trending and prioritise.
+ */
+const FEATURED_SAGAS = [
+  "A Song of Ice and Fire",
+  "Game of Thrones",
+  "A Clash of Kings",
+  "A Storm of Swords",
+  "A Feast for Crows",
+  "A Dance with Dragons",
+  "Fire and Blood",
 ];
 
 function processBooks(docs: any[]): any[] {
