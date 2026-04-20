@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Send, User } from "lucide-react";
 import StarRating from "./StarRating";
 import { Review, addReview, getReviews } from "@/lib/bookStorage";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface ReviewSectionProps {
   bookId: string;
 }
 
 const ReviewSection = ({ bookId }: ReviewSectionProps) => {
+  const { t, lang } = useI18n();
   const [reviews, setReviews] = useState<Review[]>(() => getReviews(bookId));
   const [authorName, setAuthorName] = useState("");
   const [reviewText, setReviewText] = useState("");
@@ -38,7 +40,7 @@ const ReviewSection = ({ bookId }: ReviewSectionProps) => {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <MessageSquare className="h-6 w-6 text-primary" />
-        <h3 className="font-display text-3xl text-foreground">RESEÑAS</h3>
+        <h3 className="font-display text-3xl text-foreground">{t("reviews.heading")}</h3>
         {averageRating && (
           <span className="rounded-full bg-primary/20 px-3 py-1 text-sm font-medium text-primary">
             ★ {averageRating} ({reviews.length})
@@ -48,25 +50,25 @@ const ReviewSection = ({ bookId }: ReviewSectionProps) => {
 
       {/* Write review form */}
       <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-border bg-secondary p-4">
-        <p className="text-sm font-medium text-foreground">Escribe tu reseña</p>
+        <p className="text-sm font-medium text-foreground">{t("reviews.write")}</p>
         <div className="flex items-center gap-3">
           <User className="h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
-            placeholder="Tu nombre"
+            placeholder={t("reviews.name")}
             className="h-9 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
         </div>
         <div>
-          <span className="mb-1 block text-xs text-muted-foreground">Tu puntuación:</span>
+          <span className="mb-1 block text-xs text-muted-foreground">{t("reviews.yourRating")}</span>
           <StarRating rating={reviewRating} onRate={setReviewRating} />
         </div>
         <textarea
           value={reviewText}
           onChange={(e) => setReviewText(e.target.value)}
-          placeholder="¿Qué te pareció este libro?"
+          placeholder={t("reviews.placeholder")}
           rows={3}
           className="w-full resize-none rounded-md border border-border bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
@@ -76,7 +78,7 @@ const ReviewSection = ({ bookId }: ReviewSectionProps) => {
           className="flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Send className="h-3.5 w-3.5" />
-          Publicar reseña
+          {t("reviews.publish")}
         </button>
       </form>
 
@@ -84,7 +86,7 @@ const ReviewSection = ({ bookId }: ReviewSectionProps) => {
       <AnimatePresence>
         {reviews.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            Sé el primero en dejar una reseña sobre este libro.
+            {t("reviews.empty")}
           </p>
         ) : (
           <div className="space-y-3">
@@ -105,7 +107,7 @@ const ReviewSection = ({ bookId }: ReviewSectionProps) => {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-star-active">{"★".repeat(review.rating)}</span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(review.date).toLocaleDateString("es-ES")}
+                      {new Date(review.date).toLocaleDateString(lang === "en" ? "en-US" : "es-ES")}
                     </span>
                   </div>
                 </div>
