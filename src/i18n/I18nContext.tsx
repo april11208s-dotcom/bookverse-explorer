@@ -80,6 +80,7 @@ const translations: Record<Lang, Dict> = {
     "detail.savedFav": "Saved in favorites",
     "detail.saveFav": "Save to favorites",
     "detail.synopsis": "SYNOPSIS",
+    "detail.noSynopsis": "Synopsis not available for this title.",
     "rec.heading": "WHY WE RECOMMEND IT?",
     "rec.loading": "Generating personalized recommendation...",
     "reviews.heading": "REVIEWS",
