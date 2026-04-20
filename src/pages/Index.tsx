@@ -206,7 +206,7 @@ const Index = () => {
             {/* Trending / New books */}
             <div className="mt-16 w-full">
               <h3 className="mb-6 text-center font-display text-3xl text-foreground">
-                📚 ROMANCE & FANTASÍA JUVENIL
+                {t("trending.heading")}
               </h3>
               {loadingTrending ? (
                 <div className="flex justify-center py-10">
@@ -219,7 +219,7 @@ const Index = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground">No se pudieron cargar las novedades.</p>
+                <p className="text-center text-muted-foreground">{t("trending.empty")}</p>
               )}
             </div>
           </motion.div>
@@ -231,12 +231,12 @@ const Index = () => {
             <div>
               <h2 className="font-display text-3xl text-foreground">
                 {showFavorites
-                  ? "MIS FAVORITOS"
+                  ? t("results.favorites")
                   : searchMode === "description"
-                  ? "LIBROS QUE COINCIDEN CON TU DESCRIPCIÓN"
+                  ? t("results.byDescription")
                   : searchMode === "author"
-                  ? `LIBROS DE "${query.toUpperCase()}"`
-                  : `RESULTADOS PARA "${query.toUpperCase()}"`}
+                  ? t("results.byAuthor", { q: query.toUpperCase() })
+                  : t("results.byTitle", { q: query.toUpperCase() })}
               </h2>
               {searched && !showFavorites && searchMode === "description" && (
                 <p className="mt-1 text-sm text-muted-foreground">"{query}"</p>
@@ -259,10 +259,10 @@ const Index = () => {
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-sm text-muted-foreground">
               {searchMode === "description"
-                ? "Buscando libros que coincidan con tu descripción..."
+                ? t("loading.description")
                 : searchMode === "author"
-                ? "Buscando libros de este autor..."
-                : "Buscando libros y cargando sinopsis..."}
+                ? t("loading.author")
+                : t("loading.title")}
             </p>
           </div>
         )}
@@ -281,12 +281,12 @@ const Index = () => {
         {/* Empty states */}
         {!loading && searched && !showFavorites && books.length === 0 && (
           <p className="py-20 text-center text-muted-foreground">
-            No se encontraron resultados. Intenta otra búsqueda.
+            {t("empty.search")}
           </p>
         )}
         {!loading && showFavorites && favorites.length === 0 && (
           <p className="py-20 text-center text-muted-foreground">
-            Aún no tienes favoritos. ¡Busca y guarda libros que te gusten!
+            {t("empty.favorites")}
           </p>
         )}
       </main>
