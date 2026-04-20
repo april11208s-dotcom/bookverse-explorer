@@ -132,7 +132,7 @@ const Index = () => {
               onClick={handleSearch}
               className="h-10 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
             >
-              Buscar
+              {t("btn.search")}
             </button>
 
             <button
@@ -148,8 +148,10 @@ const Index = () => {
               }`}
             >
               <Heart className="h-4 w-4" />
-              <span className="hidden md:inline">Favoritos</span>
+              <span className="hidden md:inline">{t("btn.favorites")}</span>
             </button>
+
+            <LanguageToggle />
           </div>
         </div>
       </header>
@@ -166,19 +168,19 @@ const Index = () => {
           >
             <BookOpen className="mb-6 h-20 w-20 text-primary" />
             <h2 className="mb-4 text-center font-display text-6xl text-foreground md:text-8xl">
-              DESCUBRE TU PRÓXIMO LIBRO
+              {t("hero.title")}
             </h2>
             <p className="mb-8 max-w-lg text-center text-lg text-muted-foreground">
-              Busca por título o describe lo que quieres leer. Encuentra entre millones de libros.
+              {t("hero.subtitle")}
             </p>
 
             {/* Example searches */}
             <div className="flex flex-wrap justify-center gap-2">
               {[
-                { label: "🧙 Magia y fantasía", mode: "description" as SearchMode, q: "magic fantasy wizards" },
-                { label: "🚀 Ciencia ficción", mode: "description" as SearchMode, q: "science fiction space adventure" },
-                { label: "💕 Romance", mode: "description" as SearchMode, q: "love romance drama" },
-                { label: "🔎 Misterio", mode: "description" as SearchMode, q: "mystery detective thriller" },
+                { label: t("suggest.magic"), mode: "description" as SearchMode, q: "magic fantasy wizards" },
+                { label: t("suggest.scifi"), mode: "description" as SearchMode, q: "science fiction space adventure" },
+                { label: t("suggest.romance"), mode: "description" as SearchMode, q: "love romance drama" },
+                { label: t("suggest.mystery"), mode: "description" as SearchMode, q: "mystery detective thriller" },
               ].map((suggestion) => (
                 <button
                   key={suggestion.label}
