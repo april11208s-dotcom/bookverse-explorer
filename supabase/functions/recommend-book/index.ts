@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { title, author, description, searchQuery } = await req.json();
+    const { title, author, description, searchQuery, lang } = await req.json();
+    const isEnglish = lang === "en";
 
     if (!title) {
       return new Response(
@@ -25,8 +26,26 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const userContext = searchQuery
-      ? `El usuario buscó: "${searchQuery}".`
+      ? isEnglish
+        ? `The user searched: "${searchQuery}".`
+        : `El usuario buscó: "${searchQuery}".`
+      : isEnglish
+      ? "The user is exploring books."
       : "El usuario está explorando libros.";
+
+    const systemPrompt = isEnglish
+      ? `You are an expert in YA literature, romance and fantasy. Generate a personalized and UNIQUE recommendation for a specific book.
+Explain why this particular book is special: mention plot elements, the author's style, unique themes, and why it connects with what the reader is looking for.
+Be enthusiastic but specific - avoid generic phrases. Maximum 3 sentences.
+Reply ONLY with the recommendation text, no quotes or extra formatting.`
+      : `Eres un experto en literatura juvenil, romance y fantasía. Genera una recomendación personalizada y ÚNICA para un libro específico. 
+Explica por qué este libro en particular es especial: menciona elementos de su trama, estilo del autor, temáticas únicas, y por qué conecta con lo que el lector busca.
+Sé entusiasta pero específico - no uses frases genéricas. Máximo 3 oraciones.
+Responde SOLO con el texto de la recomendación, sin comillas ni formato extra.`;
+
+    const userPrompt = isEnglish
+      ? `Book: "${title}" by ${author}.\nSynopsis: ${(description || "Not available").slice(0, 300)}\n${userContext}\n\nGenerate a unique and specific recommendation for THIS book in English.`
+      : `Libro: "${title}" de ${author}.\nSinopsis: ${(description || "No disponible").slice(0, 300)}\n${userContext}\n\nGenera una recomendación única y específica para ESTE libro.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -41,14 +60,11 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `Eres un experto en literatura juvenil, romance y fantasía. Genera una recomendación personalizada y ÚNICA para un libro específico. 
-Explica por qué este libro en particular es especial: menciona elementos de su trama, estilo del autor, temáticas únicas, y por qué conecta con lo que el lector busca.
-Sé entusiasta pero específico - no uses frases genéricas. Máximo 3 oraciones.
-Responde SOLO con el texto de la recomendación, sin comillas ni formato extra.`,
+              content: systemPrompt,
             },
             {
               role: "user",
-              content: `Libro: "${title}" de ${author}.\nSinopsis: ${(description || "No disponible").slice(0, 300)}\n${userContext}\n\nGenera una recomendación única y específica para ESTE libro.`,
+              content: userPrompt,
             },
           ],
         }),

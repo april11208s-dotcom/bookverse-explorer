@@ -4,10 +4,13 @@ import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User } from 
 import { useSearchParams } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
 import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/i18n/I18nContext";
 
 type SearchMode = "title" | "description" | "author";
 
 const Index = () => {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [books, setBooks] = useState<BookData[]>([]);
   const [favorites, setFavorites] = useState<BookData[]>([]);
@@ -59,9 +62,9 @@ const Index = () => {
   const displayBooks = showFavorites ? favorites : books;
 
   const placeholders: Record<SearchMode, string> = {
-    title: "Buscar por título...",
-    description: "Describe lo que quieres leer... ej: aventuras en el espacio",
-    author: "Buscar por autor... ej: Chloe Walsh",
+    title: t("search.title"),
+    description: t("search.description"),
+    author: t("search.author"),
   };
 
   return (
@@ -86,7 +89,7 @@ const Index = () => {
                 }`}
               >
                 <BookMarked className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Título</span>
+                <span className="hidden sm:inline">{t("mode.title")}</span>
               </button>
               <button
                 onClick={() => setSearchMode("author")}
@@ -97,7 +100,7 @@ const Index = () => {
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Autor</span>
+                <span className="hidden sm:inline">{t("mode.author")}</span>
               </button>
               <button
                 onClick={() => setSearchMode("description")}
@@ -108,7 +111,7 @@ const Index = () => {
                 }`}
               >
                 <MessageSquareText className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Descripción</span>
+                <span className="hidden sm:inline">{t("mode.description")}</span>
               </button>
             </div>
 
@@ -129,7 +132,7 @@ const Index = () => {
               onClick={handleSearch}
               className="h-10 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
             >
-              Buscar
+              {t("btn.search")}
             </button>
 
             <button
@@ -145,8 +148,10 @@ const Index = () => {
               }`}
             >
               <Heart className="h-4 w-4" />
-              <span className="hidden md:inline">Favoritos</span>
+              <span className="hidden md:inline">{t("btn.favorites")}</span>
             </button>
+
+            <LanguageToggle />
           </div>
         </div>
       </header>
@@ -163,19 +168,19 @@ const Index = () => {
           >
             <BookOpen className="mb-6 h-20 w-20 text-primary" />
             <h2 className="mb-4 text-center font-display text-6xl text-foreground md:text-8xl">
-              DESCUBRE TU PRÓXIMO LIBRO
+              {t("hero.title")}
             </h2>
             <p className="mb-8 max-w-lg text-center text-lg text-muted-foreground">
-              Busca por título o describe lo que quieres leer. Encuentra entre millones de libros.
+              {t("hero.subtitle")}
             </p>
 
             {/* Example searches */}
             <div className="flex flex-wrap justify-center gap-2">
               {[
-                { label: "🧙 Magia y fantasía", mode: "description" as SearchMode, q: "magic fantasy wizards" },
-                { label: "🚀 Ciencia ficción", mode: "description" as SearchMode, q: "science fiction space adventure" },
-                { label: "💕 Romance", mode: "description" as SearchMode, q: "love romance drama" },
-                { label: "🔎 Misterio", mode: "description" as SearchMode, q: "mystery detective thriller" },
+                { label: t("suggest.magic"), mode: "description" as SearchMode, q: "magic fantasy wizards" },
+                { label: t("suggest.scifi"), mode: "description" as SearchMode, q: "science fiction space adventure" },
+                { label: t("suggest.romance"), mode: "description" as SearchMode, q: "love romance drama" },
+                { label: t("suggest.mystery"), mode: "description" as SearchMode, q: "mystery detective thriller" },
               ].map((suggestion) => (
                 <button
                   key={suggestion.label}
@@ -201,7 +206,7 @@ const Index = () => {
             {/* Trending / New books */}
             <div className="mt-16 w-full">
               <h3 className="mb-6 text-center font-display text-3xl text-foreground">
-                📚 ROMANCE & FANTASÍA JUVENIL
+                {t("trending.heading")}
               </h3>
               {loadingTrending ? (
                 <div className="flex justify-center py-10">
@@ -214,7 +219,7 @@ const Index = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground">No se pudieron cargar las novedades.</p>
+                <p className="text-center text-muted-foreground">{t("trending.empty")}</p>
               )}
             </div>
           </motion.div>
@@ -226,12 +231,12 @@ const Index = () => {
             <div>
               <h2 className="font-display text-3xl text-foreground">
                 {showFavorites
-                  ? "MIS FAVORITOS"
+                  ? t("results.favorites")
                   : searchMode === "description"
-                  ? "LIBROS QUE COINCIDEN CON TU DESCRIPCIÓN"
+                  ? t("results.byDescription")
                   : searchMode === "author"
-                  ? `LIBROS DE "${query.toUpperCase()}"`
-                  : `RESULTADOS PARA "${query.toUpperCase()}"`}
+                  ? t("results.byAuthor", { q: query.toUpperCase() })
+                  : t("results.byTitle", { q: query.toUpperCase() })}
               </h2>
               {searched && !showFavorites && searchMode === "description" && (
                 <p className="mt-1 text-sm text-muted-foreground">"{query}"</p>
@@ -254,10 +259,10 @@ const Index = () => {
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-sm text-muted-foreground">
               {searchMode === "description"
-                ? "Buscando libros que coincidan con tu descripción..."
+                ? t("loading.description")
                 : searchMode === "author"
-                ? "Buscando libros de este autor..."
-                : "Buscando libros y cargando sinopsis..."}
+                ? t("loading.author")
+                : t("loading.title")}
             </p>
           </div>
         )}
@@ -276,12 +281,12 @@ const Index = () => {
         {/* Empty states */}
         {!loading && searched && !showFavorites && books.length === 0 && (
           <p className="py-20 text-center text-muted-foreground">
-            No se encontraron resultados. Intenta otra búsqueda.
+            {t("empty.search")}
           </p>
         )}
         {!loading && showFavorites && favorites.length === 0 && (
           <p className="py-20 text-center text-muted-foreground">
-            Aún no tienes favoritos. ¡Busca y guarda libros que te gusten!
+            {t("empty.favorites")}
           </p>
         )}
       </main>

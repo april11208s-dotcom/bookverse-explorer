@@ -6,6 +6,8 @@ import StarRating from "@/components/StarRating";
 import ReviewSection from "@/components/ReviewSection";
 import BookRecommendation from "@/components/BookRecommendation";
 import { BookData } from "@/components/BookCard";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/i18n/I18nContext";
 import {
   generateBookId,
   getBookRating,
@@ -15,6 +17,7 @@ import {
 } from "@/lib/bookStorage";
 
 const BookDetail = () => {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -64,10 +67,13 @@ const BookDetail = () => {
             className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm text-secondary-foreground transition-all hover:bg-accent"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver
+            {t("detail.back")}
           </button>
           <BookOpen className="h-6 w-6 text-primary" />
           <span className="font-display text-2xl text-primary">BOOKFLIX</span>
+          <div className="ml-auto">
+            <LanguageToggle />
+          </div>
         </div>
       </header>
 
@@ -107,7 +113,7 @@ const BookDetail = () => {
 
               {/* Rating */}
               <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">Tu puntuación:</span>
+                <span className="text-sm text-muted-foreground">{t("detail.yourRating")}</span>
                 <StarRating rating={rating} onRate={handleRate} />
               </div>
 
@@ -121,12 +127,12 @@ const BookDetail = () => {
                 }`}
               >
                 <Heart className={`h-4 w-4 ${saved ? "fill-current" : ""}`} />
-                {saved ? "Guardado en favoritos" : "Guardar en favoritos"}
+                {saved ? t("detail.savedFav") : t("detail.saveFav")}
               </button>
 
               {/* Synopsis */}
               <div>
-                <h2 className="mb-2 font-display text-2xl text-foreground">SINOPSIS</h2>
+                <h2 className="mb-2 font-display text-2xl text-foreground">{t("detail.synopsis")}</h2>
                 <p className="text-sm leading-relaxed text-secondary-foreground">
                   {book.description}
                 </p>
