@@ -292,7 +292,7 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
         cover: book.cover_i
           ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`
           : null,
-        description: description || "Sinopsis no disponible para este título.",
+        description: description || "",
       } satisfies BookData;
     })
   );
