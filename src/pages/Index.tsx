@@ -62,9 +62,9 @@ const Index = () => {
   const displayBooks = showFavorites ? favorites : books;
 
   const placeholders: Record<SearchMode, string> = {
-    title: "Buscar por título...",
-    description: "Describe lo que quieres leer... ej: aventuras en el espacio",
-    author: "Buscar por autor... ej: Chloe Walsh",
+    title: t("search.title"),
+    description: t("search.description"),
+    author: t("search.author"),
   };
 
   return (
@@ -89,7 +89,7 @@ const Index = () => {
                 }`}
               >
                 <BookMarked className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Título</span>
+                <span className="hidden sm:inline">{t("mode.title")}</span>
               </button>
               <button
                 onClick={() => setSearchMode("author")}
@@ -100,7 +100,7 @@ const Index = () => {
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Autor</span>
+                <span className="hidden sm:inline">{t("mode.author")}</span>
               </button>
               <button
                 onClick={() => setSearchMode("description")}
@@ -111,7 +111,7 @@ const Index = () => {
                 }`}
               >
                 <MessageSquareText className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Descripción</span>
+                <span className="hidden sm:inline">{t("mode.description")}</span>
               </button>
             </div>
 
