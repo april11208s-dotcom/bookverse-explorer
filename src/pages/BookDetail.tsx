@@ -134,7 +134,7 @@ const BookDetail = () => {
               <div>
                 <h2 className="mb-2 font-display text-2xl text-foreground">{t("detail.synopsis")}</h2>
                 <p className="text-sm leading-relaxed text-secondary-foreground">
-                  {book.description}
+                  {book.description || t("detail.noSynopsis")}
                 </p>
               </div>
 
