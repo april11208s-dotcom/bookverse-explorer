@@ -4,10 +4,13 @@ import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User } from 
 import { useSearchParams } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
 import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/i18n/I18nContext";
 
 type SearchMode = "title" | "description" | "author";
 
 const Index = () => {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [books, setBooks] = useState<BookData[]>([]);
   const [favorites, setFavorites] = useState<BookData[]>([]);
