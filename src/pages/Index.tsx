@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -6,11 +6,16 @@ import BookCard, { BookData } from "@/components/BookCard";
 import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useI18n } from "@/i18n/I18nContext";
+import UserMenu from "@/components/UserMenu";
+import OnboardingDialog from "@/components/OnboardingDialog";
+import { usePreferences } from "@/hooks/usePreferences";
 
 type SearchMode = "title" | "description" | "author";
 
 const Index = () => {
   const { t } = useI18n();
+  const { prefs, loading: prefsLoading } = usePreferences();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [query, setQuery] = useState("");
   const [books, setBooks] = useState<BookData[]>([]);
   const [favorites, setFavorites] = useState<BookData[]>([]);
@@ -32,6 +37,37 @@ const Index = () => {
     const saved: BookData[] = JSON.parse(localStorage.getItem("favorites") || "[]");
     setFavorites(saved);
   }, [books]);
+
+  // Open onboarding automatically the first time after signup
+  useEffect(() => {
+    if (!prefsLoading && prefs && !prefs.onboarding_completed) {
+      setShowOnboarding(true);
+    }
+  }, [prefsLoading, prefs]);
+
+  // Reorder trending: books matching favorite_authors / genres / tropes go first
+  const personalizedTrending = useMemo(() => {
+    if (!prefs || !prefs.onboarding_completed || trendingBooks.length === 0) {
+      return trendingBooks;
+    }
+    const authors = prefs.favorite_authors.map((a) => a.toLowerCase());
+    const keywords = [...prefs.favorite_genres, ...prefs.favorite_tropes, ...prefs.favorite_tones]
+      .map((k) => k.toLowerCase())
+      .filter(Boolean);
+
+    const score = (b: BookData) => {
+      let s = 0;
+      const author = (b.author ?? "").toLowerCase();
+      const desc = (b.description ?? "").toLowerCase();
+      if (authors.some((a) => a && author.includes(a))) s += 10;
+      keywords.forEach((k) => { if (k && desc.includes(k)) s += 1; });
+      return s;
+    };
+
+    return [...trendingBooks].sort((a, b) => score(b) - score(a));
+  }, [trendingBooks, prefs]);
+
+  const personalized = !!prefs?.onboarding_completed;
 
   const [searchParamsURL, setSearchParamsURL] = useSearchParams();
 
@@ -152,6 +188,7 @@ const Index = () => {
             </button>
 
             <LanguageToggle />
+            <UserMenu onEditPrefs={() => setShowOnboarding(true)} />
           </div>
         </div>
       </header>
@@ -206,15 +243,15 @@ const Index = () => {
             {/* Trending / New books */}
             <div className="mt-16 w-full">
               <h3 className="mb-6 text-center font-display text-3xl text-foreground">
-                {t("trending.heading")}
+                {personalized ? t("trending.foryou") : t("trending.heading")}
               </h3>
               {loadingTrending ? (
                 <div className="flex justify-center py-10">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
-              ) : trendingBooks.length > 0 ? (
+              ) : personalizedTrending.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {trendingBooks.map((book, i) => (
+                  {personalizedTrending.map((book, i) => (
                     <BookCard key={`trending-${book.title}-${i}`} book={book} index={i} />
                   ))}
                 </div>
@@ -290,6 +327,8 @@ const Index = () => {
           </p>
         )}
       </main>
+
+      <OnboardingDialog open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
 };
