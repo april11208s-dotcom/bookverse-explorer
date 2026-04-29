@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import BookDetail from "./pages/BookDetail.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
+import BookChat from "./pages/BookChat.tsx";
 import { I18nProvider } from "./i18n/I18nContext";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Protected><Index /></Protected>} />
               <Route path="/book/:id" element={<Protected><BookDetail /></Protected>} />
+              <Route path="/chat" element={<Protected><BookChat /></Protected>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

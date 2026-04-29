@@ -87,6 +87,9 @@ const translations: Record<Lang, Dict> = {
     "onb.length.medium": "Medios (300-500 págs)",
     "onb.length.long": "Largos (>500 págs)",
     "trending.foryou": "✨ RECOMENDADO PARA TI",
+    "chat.title": "CHAT CON LA IA",
+    "chat.placeholder": "Escribe lo que buscas...",
+    "btn.chat": "Chat IA",
   },
   en: {
     "search.title": "Search by title...",
@@ -170,6 +173,9 @@ const translations: Record<Lang, Dict> = {
     "onb.length.medium": "Medium (300-500 pages)",
     "onb.length.long": "Long (>500 pages)",
     "trending.foryou": "✨ RECOMMENDED FOR YOU",
+    "chat.title": "CHAT WITH AI",
+    "chat.placeholder": "Type what you're looking for...",
+    "btn.chat": "AI Chat",
   },
 };
 
