@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User, Sparkles } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
 import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -14,6 +14,7 @@ type SearchMode = "title" | "description" | "author";
 
 const Index = () => {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { prefs, loading: prefsLoading } = usePreferences();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [query, setQuery] = useState("");
@@ -185,6 +186,14 @@ const Index = () => {
             >
               <Heart className="h-4 w-4" />
               <span className="hidden md:inline">{t("btn.favorites")}</span>
+            </button>
+
+            <button
+              onClick={() => navigate("/chat")}
+              className="flex h-10 items-center gap-1 rounded-full bg-gradient-to-r from-primary to-primary/70 px-4 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden md:inline">{t("btn.chat")}</span>
             </button>
 
             <LanguageToggle />
