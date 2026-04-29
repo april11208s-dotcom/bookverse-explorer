@@ -4,6 +4,7 @@ import { ArrowLeft, Send, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useI18n } from "@/i18n/I18nContext";
 import { usePreferences } from "@/hooks/usePreferences";
+import ChatBookCovers from "@/components/ChatBookCovers";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -155,8 +156,11 @@ const BookChat = () => {
                 }`}
               >
                 {m.role === "assistant" ? (
-                  <div className="prose prose-sm prose-invert max-w-none [&_strong]:text-primary">
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <div>
+                    <div className="prose prose-sm prose-invert max-w-none [&_strong]:text-primary">
+                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                    </div>
+                    <ChatBookCovers markdown={m.content} />
                   </div>
                 ) : (
                   m.content
