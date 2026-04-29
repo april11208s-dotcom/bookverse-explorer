@@ -19,6 +19,17 @@ const BookChat = () => {
     : "¡Hola! Soy tu cazadora de libros personal 📚✨ Cuéntame: ¿qué mood tienes para tu próxima lectura? ¿Romance acogedor, fantasía oscura, algo trepidante?";
 
   const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: initial }]);
+
+  // Update greeting when language changes, only if no conversation has started yet
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].role === "assistant") {
+        return [{ role: "assistant", content: initial }];
+      }
+      return prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
