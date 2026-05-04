@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import StarRating from "./StarRating";
 import { Heart } from "lucide-react";
-import { generateBookId, getBookRating, setBookRating, isFavorite, toggleFavorite } from "@/lib/bookStorage";
+import { generateBookId, getBookRating, setBookRating, isFavorite, toggleFavorite, setLibraryStatus, getLibraryStatus } from "@/lib/bookStorage";
 
 export interface BookData {
   title: string;
@@ -32,6 +32,12 @@ const BookCard = ({ book, index }: BookCardProps) => {
     e.stopPropagation();
     const nowSaved = toggleFavorite(book);
     setSaved(nowSaved);
+    // Sync with personal library: liked when saved, remove if unliked & not marked read
+    if (nowSaved) {
+      setLibraryStatus(book, "liked");
+    } else if (getLibraryStatus(book.title) === "liked") {
+      setLibraryStatus(book, null);
+    }
   };
 
   const handleRate = (star: number) => {
