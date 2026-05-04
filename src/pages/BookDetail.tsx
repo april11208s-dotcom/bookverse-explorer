@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Heart, BookOpen } from "lucide-react";
+import { ArrowLeft, Heart, BookOpen, CheckCircle2 } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import ReviewSection from "@/components/ReviewSection";
 import BookRecommendation from "@/components/BookRecommendation";
@@ -14,6 +14,9 @@ import {
   setBookRating,
   isFavorite,
   toggleFavorite,
+  setLibraryStatus,
+  getLibraryStatus,
+  type LibraryStatus,
 } from "@/lib/bookStorage";
 
 const BookDetail = () => {
@@ -26,6 +29,7 @@ const BookDetail = () => {
   const [book, setBook] = useState<BookData | null>(null);
   const [rating, setRating] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [libStatus, setLibStatus] = useState<LibraryStatus | null>(null);
 
   useEffect(() => {
     // Try to find book from localStorage cache
@@ -36,6 +40,7 @@ const BookDetail = () => {
         setBook(parsed);
         setRating(getBookRating(parsed.title));
         setSaved(isFavorite(parsed.title));
+        setLibStatus(getLibraryStatus(parsed.title));
         return;
       }
     }
@@ -53,6 +58,20 @@ const BookDetail = () => {
   const handleToggleFavorite = () => {
     const nowSaved = toggleFavorite(book);
     setSaved(nowSaved);
+    if (nowSaved) {
+      setLibraryStatus(book, "liked");
+      setLibStatus("liked");
+    } else if (getLibraryStatus(book.title) === "liked") {
+      setLibraryStatus(book, null);
+      setLibStatus(null);
+    }
+  };
+
+  const handleMarkRead = () => {
+    if (!book) return;
+    const next = libStatus === "read" ? null : "read";
+    setLibraryStatus(book, next);
+    setLibStatus(next);
   };
 
   const bookId = generateBookId(book.title);
@@ -128,6 +147,18 @@ const BookDetail = () => {
               >
                 <Heart className={`h-4 w-4 ${saved ? "fill-current" : ""}`} />
                 {saved ? t("detail.savedFav") : t("detail.saveFav")}
+              </button>
+
+              <button
+                onClick={handleMarkRead}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all ${
+                  libStatus === "read"
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-secondary text-secondary-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {t("lib.markRead")}
               </button>
 
               {/* Synopsis */}
