@@ -54,3 +54,60 @@ export function toggleFavorite(book: { title: string; author: string; cover: str
 export function generateBookId(title: string): string {
   return encodeURIComponent(title.toLowerCase().replace(/\s+/g, "-"));
 }
+
+// ===== Personal Library =====
+export type LibraryStatus = "liked" | "read";
+
+export interface LibraryEntry {
+  book: { title: string; author: string; cover: string | null; description: string };
+  status: LibraryStatus;
+  addedAt: string;
+}
+
+const LIB_KEY = "library";
+
+export function getLibrary(): LibraryEntry[] {
+  return JSON.parse(localStorage.getItem(LIB_KEY) || "[]");
+}
+
+export function getLibraryEntry(bookId: string): LibraryEntry | null {
+  return getLibrary().find((e) => generateBookId(e.book.title) === bookId) || null;
+}
+
+export function setLibraryStatus(
+  book: LibraryEntry["book"],
+  status: LibraryStatus | null,
+): void {
+  let lib = getLibrary().filter((e) => e.book.title !== book.title);
+  if (status) {
+    lib.unshift({ book, status, addedAt: new Date().toISOString() });
+  }
+  localStorage.setItem(LIB_KEY, JSON.stringify(lib));
+}
+
+export function getLibraryStatus(bookTitle: string): LibraryStatus | null {
+  const e = getLibrary().find((x) => x.book.title === bookTitle);
+  return e?.status ?? null;
+}
+
+// Personal notes (separate from public reviews)
+export interface PersonalNote {
+  text: string;
+  rating: number;
+  updatedAt: string;
+}
+
+export function getPersonalNote(bookId: string): PersonalNote | null {
+  const all: Record<string, PersonalNote> = JSON.parse(
+    localStorage.getItem("personalNotes") || "{}",
+  );
+  return all[bookId] || null;
+}
+
+export function savePersonalNote(bookId: string, note: Omit<PersonalNote, "updatedAt">): void {
+  const all: Record<string, PersonalNote> = JSON.parse(
+    localStorage.getItem("personalNotes") || "{}",
+  );
+  all[bookId] = { ...note, updatedAt: new Date().toISOString() };
+  localStorage.setItem("personalNotes", JSON.stringify(all));
+}

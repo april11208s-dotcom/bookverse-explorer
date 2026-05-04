@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User, Sparkles } from "lucide-react";
+import { Search, BookOpen, Heart, X, MessageSquareText, BookMarked, User, Sparkles, Library as LibraryIcon } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import BookCard, { BookData } from "@/components/BookCard";
 import { searchBooks, searchByDescription, searchByAuthor, fetchTrendingBooks } from "@/lib/bookApi";
@@ -194,6 +194,14 @@ const Index = () => {
             >
               <Sparkles className="h-4 w-4" />
               <span className="hidden md:inline">{t("btn.chat")}</span>
+            </button>
+
+            <button
+              onClick={() => navigate("/library")}
+              className="flex h-10 items-center gap-1 rounded-full bg-secondary px-4 text-sm font-medium text-secondary-foreground transition-all hover:bg-accent"
+            >
+              <LibraryIcon className="h-4 w-4" />
+              <span className="hidden md:inline">{t("btn.library")}</span>
             </button>
 
             <LanguageToggle />
