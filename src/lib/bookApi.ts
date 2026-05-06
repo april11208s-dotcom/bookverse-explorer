@@ -8,6 +8,44 @@ const AI_TIMEOUT_MS = 6000;
 const MAX_DESCRIPTION_FETCHES = 8;
 const MIN_RESULTS_WITH_COVERS = 6;
 
+const GOOGLE_BOOKS_ENDPOINT = "https://www.googleapis.com/books/v1/volumes";
+
+/**
+ * Fetch books from Google Books API and convert them into the same shape
+ * used by Open Library docs so they can be merged seamlessly.
+ */
+async function fetchGoogleBooksDocs(query: string, limit = 20): Promise<any[]> {
+  try {
+    const url = `${GOOGLE_BOOKS_ENDPOINT}?q=${encodeURIComponent(query)}&maxResults=${Math.min(limit, 40)}&printType=books&orderBy=relevance`;
+    const response = await axios.get(url, { timeout: SEARCH_TIMEOUT_MS });
+    const items = Array.isArray(response.data?.items) ? response.data.items : [];
+    return items.map((item: any) => {
+      const info = item.volumeInfo || {};
+      const cover =
+        info.imageLinks?.extraLarge ||
+        info.imageLinks?.large ||
+        info.imageLinks?.medium ||
+        info.imageLinks?.thumbnail ||
+        info.imageLinks?.smallThumbnail ||
+        null;
+      return {
+        key: `/works/google_${item.id}`,
+        title: info.title || "",
+        author_name: info.authors || [],
+        cover_i: null,
+        _googleCover: cover ? cover.replace(/^http:/, "https:") : null,
+        _googleDescription: info.description || "",
+        first_sentence: info.description ? [info.description] : undefined,
+        subject: info.categories || [],
+        edition_count: 1,
+        first_publish_year: info.publishedDate ? parseInt(info.publishedDate.slice(0, 4), 10) || 0 : 0,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Clean book titles by removing edition/format noise like
  * "Hardcover", "Box Set", "Paperback", etc.
@@ -293,7 +331,7 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
         author: book.author_name?.[0] || "Desconocido",
         cover: book.cover_i
           ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`
-          : null,
+          : book._googleCover || null,
         description: description || "",
       } satisfies BookData;
     })
@@ -309,12 +347,16 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
  */
 export async function searchByAuthor(authorName: string): Promise<BookData[]> {
   const queries = expandQueries(authorName);
-  const allDocs = await fetchMergedDocs(queries, [
+  const olDocs = await fetchMergedDocs(queries, [
     (query) =>
       `https://openlibrary.org/search.json?author=${encodeURIComponent(query)}&sort=new&limit=40&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
     (query) =>
       `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
+  const googleDocs = (
+    await Promise.all(queries.map((q) => fetchGoogleBooksDocs(`inauthor:${q}`, 20)))
+  ).flat();
+  const allDocs = dedupeDocs([...olDocs, ...googleDocs]);
 
   allDocs.sort((a, b) => (b.first_publish_year || 0) - (a.first_publish_year || 0));
   return docsToBooks(processBooks(allDocs, authorName).slice(0, 25));
@@ -333,6 +375,11 @@ export async function searchBooks(query: string): Promise<BookData[]> {
     (value) =>
       `https://openlibrary.org/search.json?title=${encodeURIComponent(value)}&sort=editions&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
+
+  const googleDocs = (
+    await Promise.all(queries.map((q) => fetchGoogleBooksDocs(q, 20)))
+  ).flat();
+  allDocs = dedupeDocs([...allDocs, ...googleDocs]);
 
   if (
     normalizedQuery.includes("juego de tronos") ||
@@ -419,6 +466,7 @@ export async function fetchTrendingBooks(): Promise<BookData[]> {
       fetchDocs(
         `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
       ),
+      fetchGoogleBooksDocs(`inauthor:${author}`, 10),
     ]),
     ...FEATURED_SAGAS.map((saga) =>
       fetchDocs(
