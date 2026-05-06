@@ -466,6 +466,7 @@ export async function fetchTrendingBooks(): Promise<BookData[]> {
       fetchDocs(
         `https://openlibrary.org/search.json?q=${encodeURIComponent(author)}&sort=new&limit=6&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`
       ),
+      fetchGoogleBooksDocs(`inauthor:${author}`, 10),
     ]),
     ...FEATURED_SAGAS.map((saga) =>
       fetchDocs(
