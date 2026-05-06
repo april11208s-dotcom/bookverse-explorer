@@ -347,12 +347,16 @@ async function docsToBooks(docs: any[]): Promise<BookData[]> {
  */
 export async function searchByAuthor(authorName: string): Promise<BookData[]> {
   const queries = expandQueries(authorName);
-  const allDocs = await fetchMergedDocs(queries, [
+  const olDocs = await fetchMergedDocs(queries, [
     (query) =>
       `https://openlibrary.org/search.json?author=${encodeURIComponent(query)}&sort=new&limit=40&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
     (query) =>
       `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&sort=new&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
+  const googleDocs = (
+    await Promise.all(queries.map((q) => fetchGoogleBooksDocs(`inauthor:${q}`, 20)))
+  ).flat();
+  const allDocs = dedupeDocs([...olDocs, ...googleDocs]);
 
   allDocs.sort((a, b) => (b.first_publish_year || 0) - (a.first_publish_year || 0));
   return docsToBooks(processBooks(allDocs, authorName).slice(0, 25));
@@ -371,6 +375,11 @@ export async function searchBooks(query: string): Promise<BookData[]> {
     (value) =>
       `https://openlibrary.org/search.json?title=${encodeURIComponent(value)}&sort=editions&limit=20&fields=key,title,author_name,cover_i,first_sentence,subject,edition_count,first_publish_year`,
   ]);
+
+  const googleDocs = (
+    await Promise.all(queries.map((q) => fetchGoogleBooksDocs(q, 20)))
+  ).flat();
+  allDocs = dedupeDocs([...allDocs, ...googleDocs]);
 
   if (
     normalizedQuery.includes("juego de tronos") ||
