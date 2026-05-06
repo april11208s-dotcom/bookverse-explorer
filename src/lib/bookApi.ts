@@ -129,6 +129,8 @@ const CURATED_AUTHORS = [
   "Care Santos",
   "Iria G. Parente",
   "Selene M. Pascual",
+  "America Rodas",
+  "América Rodas",
   "George R. R. Martin",
   "Brandon Sanderson",
   "Patrick Rothfuss",
