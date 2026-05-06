@@ -5,6 +5,7 @@ import { ArrowLeft, Heart, BookOpen, CheckCircle2 } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import ReviewSection from "@/components/ReviewSection";
 import BookRecommendation from "@/components/BookRecommendation";
+import BookPreview from "@/components/BookPreview";
 import { BookData } from "@/components/BookCard";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useI18n } from "@/i18n/I18nContext";
@@ -171,6 +172,9 @@ const BookDetail = () => {
 
               {/* AI Recommendation */}
               <BookRecommendation book={book} searchQuery={searchQuery} />
+
+              {/* Preview & purchase links */}
+              <BookPreview book={book} />
             </div>
           </div>
 
